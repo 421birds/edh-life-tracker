@@ -1,0 +1,186 @@
+.player-card-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s ease;
+  min-height: 200px;
+}
+
+/* Color theme classes applied dynamically */
+.color-0 { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(0,0,0,0.5)); border-color: rgba(239, 68, 68, 0.3); } /* Red */
+.color-1 { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(0,0,0,0.5)); border-color: rgba(59, 130, 246, 0.3); } /* Blue */
+.color-2 { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(0,0,0,0.5)); border-color: rgba(34, 197, 94, 0.3); } /* Green */
+.color-3 { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(0,0,0,0.5)); border-color: rgba(245, 158, 11, 0.3); } /* Yellow/Gold */
+.color-4 { background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(0,0,0,0.5)); border-color: rgba(168, 85, 247, 0.3); } /* Purple */
+.color-5 { background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(0,0,0,0.5)); border-color: rgba(255, 255, 255, 0.3); } /* White/Grey */
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 56px;
+}
+
+.player-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  cursor: pointer;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.player-name:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.name-form {
+  flex: 1;
+  display: flex;
+}
+
+.name-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--accent-color);
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.toggle-cmd-btn {
+  background: transparent;
+  font-size: 1.2rem;
+  padding: 8px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.toggle-cmd-btn.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.life-tracker-arena {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  position: relative;
+}
+
+.life-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 3rem;
+  color: rgba(255, 255, 255, 0.3);
+  transition: all 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  /* Make huge touch targets */
+  padding: 0;
+  margin: 0;
+}
+
+.life-btn:active {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  transform: none; /* override default button scale */
+}
+
+.life-total {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 6rem;
+  font-weight: 900;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  pointer-events: none; /* Let taps pass through to buttons if needed, though they don't overlap full width */
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.life-total.dead {
+  color: var(--danger-color);
+  opacity: 0.8;
+}
+
+.quick-life-controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.commander-damage-section {
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  backdrop-filter: blur(8px);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 56px; /* Below header */
+  z-index: 10;
+  overflow-y: auto;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cmd-header {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

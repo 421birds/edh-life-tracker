@@ -1,0 +1,206 @@
+.player-card-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.3s ease;
+  min-height: 200px;
+}
+
+/* Flat colored backgrounds for distinct players */
+.color-0 { background-color: #e53e3e; } /* Red */
+.color-1 { background-color: #3182ce; } /* Blue */
+.color-2 { background-color: #38a169; } /* Green */
+.color-3 { background-color: #d69e2e; } /* Yellow */
+.color-4 { background-color: #805ad5; } /* Purple */
+.color-5 { background-color: #dd6b20; } /* Orange */
+
+/* Fill colors used for commander damage indicators */
+.color-fill-1 { background-color: #e53e3e; } 
+.color-fill-2 { background-color: #3182ce; }
+.color-fill-3 { background-color: #38a169; }
+.color-fill-4 { background-color: #d69e2e; }
+.color-fill-5 { background-color: #805ad5; }
+.color-fill-6 { background-color: #dd6b20; }
+.color-fill-poison { background-color: #333333; border: 1px solid rgba(255, 255, 255, 0.3); }
+
+.life-tracker-arena {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  position: relative;
+}
+
+.life-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 3rem;
+  color: rgba(255, 255, 255, 0); /* Invisible text, huge touch area */
+  transition: background-color 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  padding: 0;
+  margin: 0;
+}
+
+/* Remove active background tint entirely (invisible footprint) */
+.life-btn:active {
+  background-color: transparent;
+}
+
+.center-info-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none; /* Let taps pass through to buttons if needed */
+}
+
+.life-total {
+  font-size: 8rem;
+  font-weight: 900;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: auto; /* Allow long pressing the number itself */
+}
+
+.life-total.dead {
+  color: #000;
+  opacity: 0.8;
+}
+
+.life-delta {
+  font-size: 2.5rem;
+  font-weight: bold;
+  position: absolute;
+  top: 50%;
+  right: -80px; /* Position to the right side next to life total */
+  transform: translateY(-50%);
+  z-index: 10;
+  animation: floatRight 0.3s ease-out forwards;
+}
+
+.life-delta.positive { color: #ffffff; }
+.life-delta.negative { color: #333333; }
+.life-delta.tracker-delta { color: #333333; }
+
+@keyframes floatRight {
+  from { opacity: 0; transform: translate(-10px, -50%) scale(0.8); }
+  to { opacity: 1; transform: translate(0, -50%) scale(1); }
+}
+
+.life-form {
+  pointer-events: auto;
+}
+
+.life-input {
+  width: 120px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #fff;
+  color: white;
+  font-size: 4rem;
+  font-weight: 900;
+  text-align: center;
+  border-radius: 8px;
+  outline: none;
+}
+
+/* Commander Damage Horizontal Row */
+.commander-damage-row {
+  min-height: 60px; /* Minimum height ensures at least 1 row */
+  background: transparent;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center horizontally */
+  padding: 8px;
+  overflow: visible; /* Allow delta to float up out of bounds */
+}
+
+/* Hide scrollbar for a cleaner look */
+.commander-damage-row::-webkit-scrollbar {
+  display: none;
+}
+
+.cmd-list-horizontal {
+  display: flex;
+  flex-wrap: nowrap; /* Forces pills onto one line */
+  gap: 4px; /* Tighter gap to help fit them all */
+  align-items: center;
+  justify-content: center; 
+  width: 100%;
+}
+
+.cmd-list-horizontal::before,
+.cmd-list-horizontal::after {
+  content: '';
+  margin: auto;
+}
+
+.cmd-damage-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: 16px;
+  padding: 0 2px;
+  flex: 1 1 0; /* Grow and shrink dynamically */
+  min-width: 0; /* Let it shrink below content strictly if needed */
+  border: 2px solid rgba(255, 255, 255, 0.8); /* Thick white outline */
+}
+
+.cmd-damage-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cmd-btn {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0; /* Ensures buttons don't deform on tiny screens */
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: white;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.cmd-btn:active {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cmd-btn:disabled {
+  opacity: 0.2;
+}
+
+.cmd-value {
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  min-width: 0; 
+  flex: 1; 
+  text-align: center;
+}
+
+.cmd-value.lethal {
+  color: #000;
+}
