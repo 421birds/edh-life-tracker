@@ -10,6 +10,7 @@ interface CommanderDamageProps {
   colorClass: string;
   onDeltaChange?: (delta: number) => void;
   lethalThreshold?: number;
+  wrapperClass?: string;
 }
 
 export const CommanderDamage: React.FC<CommanderDamageProps> = ({
@@ -19,6 +20,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   colorClass,
   onDeltaChange,
   lethalThreshold = 21,
+  wrapperClass = '',
 }) => {
   const [cmdDelta, setCmdDelta] = useState(0);
   const [showDelta, setShowDelta] = useState(false);
@@ -57,7 +59,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   }, [cmdDelta, showDelta, onDeltaChange]);
 
   return (
-    <div className={`cmd-damage-item ${colorClass}`}>
+    <div className={`cmd-damage-item ${colorClass} ${wrapperClass}`}>
       <div className="cmd-damage-controls">
         <button 
           className="cmd-btn cmd-sub" 

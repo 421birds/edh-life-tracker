@@ -16,6 +16,7 @@ interface PlayerCardProps {
   flipVertical: boolean;
   flipHorizontal: boolean;
   forceRotation?: number;
+  layoutVariant?: 'default' | 'head-to-head';
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -29,6 +30,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   flipVertical,
   flipHorizontal,
   forceRotation,
+  layoutVariant = 'default',
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { width, height, isLandscape } = useCardOrientation(containerRef);
@@ -81,7 +83,15 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const lifeTotalHold = useContinuousHold(() => {
     setExactLifeInput(player.life.toString());
     setIsEditingLife(true);
-  }, 600, 999999); // Huge interval so it only fires once
+  }, 600, 999999, false); // Huge interval, strictly fires ONLY after 600ms hold
+
+  // Intercept the pointerDown event to ensure it doesn't inadvertently trigger the +/- buttons under the ring in some browsers
+  const handleRingPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (lifeTotalHold.handlers.onPointerDown) {
+      lifeTotalHold.handlers.onPointerDown(e);
+    }
+  };
 
   // Calculate rotation and absolute structural styling
   let rotation = 0;
@@ -116,11 +126,33 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     contentStyle.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
   }
 
+  const isH2H = layoutVariant === 'head-to-head' && opponents.length === 3;
+  const isLeftAligned = player.id === 'player-1' || player.id === 'player-4';
+  
+  // Players A and B in 3-player layout act exactly like they do in 2x2
+  const is3PlayerCorner = opponents.length === 2 && (player.id === 'player-1' || player.id === 'player-2');
+  const is3PlayerCenter = opponents.length === 2 && player.id === 'player-3';
+  
+  const isUseCornerGrid = (layoutVariant === 'default' && opponents.length === 3) || is3PlayerCorner;
+
+  const grid2x2PosClass = isLeftAligned ? 'cmd-pos-left' : 'cmd-pos-right';
+  const lifeShiftClass = isUseCornerGrid ? (isLeftAligned ? 'arena-shift-right' : 'arena-shift-left') : '';
+
   return (
     <div className={`player-card-container ${colorClass}`} ref={containerRef}>
+      
+      {/* Invisible Full-Card Intercept Overlay: Active ONLY when Numpad is Open */}
+      {isEditingLife && (
+        <div 
+          className="absolute-row" 
+          style={{ zIndex: 100, pointerEvents: 'auto' }} 
+          onPointerDown={() => setIsEditingLife(false)} 
+        />
+      )}
+
       {/* Rotated Internal Frame */}
       <div style={contentStyle}>
-        <div className="life-tracker-arena">
+        <div className={`life-tracker-arena ${lifeShiftClass}`}>
         <button 
           className="life-btn giant-sub" 
           {...subHold.handlers}
@@ -128,38 +160,48 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         </button>
         
         <div className="center-info-container">
-          {showDelta && lifeDelta !== 0 && (
+          {!isUseCornerGrid && showDelta && lifeDelta !== 0 && (
             <div className={`life-delta ${lifeDelta > 0 ? 'positive' : 'negative'}`}>
               {lifeDelta > 0 ? '+' : ''}{lifeDelta}
             </div>
           )}
-          {trackerDelta !== 0 && (
+          {!isUseCornerGrid && trackerDelta !== 0 && (
             <div className={`life-delta tracker-delta ${trackerDelta > 0 ? 'positive' : 'negative'}`}>
               {trackerDelta > 0 ? '+' : ''}{trackerDelta}
             </div>
           )}
 
-          {isEditingLife ? (
-            <form className="life-form" onSubmit={handleLifeSubmit}>
-              <input
-                type="number"
-                pattern="\d*" /* Force numeric keypad on iOS */
-                inputMode="numeric"
-                autoFocus
-                className="life-input"
-                value={exactLifeInput}
-                onChange={(e) => setExactLifeInput(e.target.value)}
-                onBlur={handleLifeSubmit}
-              />
-            </form>
-          ) : (
+          <div className="life-display-wrapper">
             <div 
-              className={`life-total ${player.life <= 0 ? 'dead' : ''}`}
-              {...lifeTotalHold.handlers}
-            >
-              {player.life}
-            </div>
-          )}
+              className="life-ring" 
+              {...lifeTotalHold.handlers} 
+              onPointerDown={handleRingPointerDown}
+            />
+            {isEditingLife ? (
+              <form 
+                className="life-form" 
+                onSubmit={handleLifeSubmit}
+                onClick={(e) => e.stopPropagation()} // Prevent ring from capturing clicks on input
+              >
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="life-input"
+                  value={exactLifeInput}
+                  onChange={(e) => setExactLifeInput(e.target.value)}
+                  onBlur={handleLifeSubmit}
+                  autoFocus
+                />
+              </form>
+            ) : (
+              <div 
+                className={`life-total ${player.life <= 0 ? 'dead' : ''}`}
+              >
+                {player.life}
+              </div>
+            )}
+          </div>
         </div>
 
         <button 
@@ -170,8 +212,22 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       </div>
 
       {opponents.length > 0 && (
-        <div className="commander-damage-row">
-          <div className="cmd-list-horizontal">
+        <div className={isUseCornerGrid ? 'absolute-row' : 'commander-damage-row'}>
+          {isUseCornerGrid && (
+            <div className={`delta-2x2-container ${grid2x2PosClass}`}>
+              {trackerDelta !== 0 && (
+                <div className={`life-delta life-delta-2x2 tracker-delta ${trackerDelta > 0 ? 'positive' : 'negative'}`}>
+                  {trackerDelta > 0 ? '+' : ''}{trackerDelta}
+                </div>
+              )}
+              {showDelta && lifeDelta !== 0 && (
+                <div className={`life-delta life-delta-2x2 ${lifeDelta > 0 ? 'positive' : 'negative'}`}>
+                  {lifeDelta > 0 ? '+' : ''}{lifeDelta}
+                </div>
+              )}
+            </div>
+          )}
+          <div className={isH2H ? "cmd-dpad" : is3PlayerCenter ? "cmd-dpad cmd-3player-center" : isUseCornerGrid ? `cmd-2x2-grid ${grid2x2PosClass}` : "cmd-list-horizontal"}>
             {/* Poison Tracker First */}
             <CommanderDamage
               opponentId="poison"
@@ -182,8 +238,51 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               colorClass="color-fill-poison"
               onDeltaChange={setTrackerDelta}
               lethalThreshold={10}
+              wrapperClass={isH2H || is3PlayerCenter ? "dpad-center" : isUseCornerGrid ? (isLeftAligned ? "grid-bl" : "grid-br") : ""}
             />
             {opponents.map((opp) => {
+              let posClass = "";
+              if (isH2H) {
+                if (player.id === 'player-1') {
+                  if (opp.id === 'player-4') posClass = 'dpad-up';
+                  else if (opp.id === 'player-3') posClass = 'dpad-left';
+                  else if (opp.id === 'player-2') posClass = 'dpad-right';
+                } else if (player.id === 'player-2') {
+                  if (opp.id === 'player-3') posClass = 'dpad-up';
+                  else if (opp.id === 'player-1') posClass = 'dpad-left';
+                  else if (opp.id === 'player-4') posClass = 'dpad-right';
+                } else if (player.id === 'player-3') {
+                  if (opp.id === 'player-2') posClass = 'dpad-up';
+                  else if (opp.id === 'player-4') posClass = 'dpad-left';
+                  else if (opp.id === 'player-1') posClass = 'dpad-right';
+                } else if (player.id === 'player-4') {
+                  if (opp.id === 'player-1') posClass = 'dpad-up';
+                  else if (opp.id === 'player-2') posClass = 'dpad-left';
+                  else if (opp.id === 'player-3') posClass = 'dpad-right';
+                }
+              } else if (isUseCornerGrid) {
+                if (player.id === 'player-1') {
+                  if (opp.id === 'player-2') posClass = 'grid-tl';
+                  else if (opp.id === 'player-4') posClass = 'grid-tr';
+                  else if (opp.id === 'player-3') posClass = 'grid-br';
+                } else if (player.id === 'player-2') {
+                  if (opp.id === 'player-1') posClass = 'grid-tr';
+                  else if (opp.id === 'player-4') posClass = 'grid-bl';
+                  else if (opp.id === 'player-3') posClass = opponents.length === 2 ? 'grid-bl' : 'grid-tl';
+                } else if (player.id === 'player-3') {
+                  if (opp.id === 'player-4') posClass = 'grid-tr';
+                  else if (opp.id === 'player-2') posClass = 'grid-tl';
+                  else if (opp.id === 'player-1') posClass = 'grid-bl';
+                } else if (player.id === 'player-4') {
+                  if (opp.id === 'player-3') posClass = 'grid-tl';
+                  else if (opp.id === 'player-1') posClass = 'grid-tr';
+                  else if (opp.id === 'player-2') posClass = 'grid-br';
+                }
+              } else if (is3PlayerCenter && player.id === 'player-3') {
+                if (opp.id === 'player-1') posClass = 'dpad-left';
+                else if (opp.id === 'player-2') posClass = 'dpad-right';
+              }
+
               return (
                 <CommanderDamage
                   key={opp.id}
@@ -194,6 +293,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   onSub={() => onCommanderDamageChange(opp.id, -1)}
                   colorClass={`color-fill-${opp.id.split('-')[1]}`} 
                   onDeltaChange={setTrackerDelta}
+                  wrapperClass={posClass}
                 />
               )
             })}

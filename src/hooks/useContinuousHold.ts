@@ -11,11 +11,17 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 export const useContinuousHold = (
   action: () => void,
   delay: number = 400,
-  intervalLength: number = 100
+  intervalLength: number = 100,
+  fireImmediately: boolean = true
 ) => {
   const [isPressing, setIsPressing] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const intervalTimer = useRef<number | null>(null);
+  const actionRef = useRef(action);
+
+  useEffect(() => {
+    actionRef.current = action;
+  }, [action]);
 
   const start = useCallback(
     (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
@@ -24,17 +30,24 @@ export const useContinuousHold = (
       
       setIsPressing(true);
 
-      // Fire the first action immediately on press
-      action();
+      if (fireImmediately) {
+        actionRef.current();
+      }
 
-      // Setup the delay before interval firing
+      // Setup the delay before firing the FIRST action (long press threshold)
       pressTimer.current = window.setTimeout(() => {
+        // Fire the action once the long press delay is reached
+        if (!fireImmediately) {
+          actionRef.current();
+        }
+        
+        // Then start the repeating interval
         intervalTimer.current = window.setInterval(() => {
-          action();
+          actionRef.current();
         }, intervalLength);
       }, delay);
     },
-    [action, delay, intervalLength]
+    [delay, intervalLength, fireImmediately]
   );
 
   const stop = useCallback(() => {

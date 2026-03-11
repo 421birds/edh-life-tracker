@@ -99,6 +99,7 @@ function App() {
                 onLifeExact={(amount) => setLifeExact(player.id, amount)}
                 onPoisonChange={(amount) => updatePoison(player.id, amount)}
                 onCommanderDamageChange={(oppId, amount) => updateCommanderDamage(player.id, oppId, amount)}
+                layoutVariant={gameState.layoutVariant}
                 {...getCardOrientationProps(index, gameState.playerCount)}
               />
             </div>
@@ -111,7 +112,7 @@ function App() {
         style={{ transform: gameState.playerCount === 4 ? 'translate(-50%, -50%) rotate(90deg)' : 'translate(-50%, -50%) rotate(0deg)' }}
       >
         <button className="widget-half widget-top" onClick={() => setShowSettings(!showSettings)}>
-          <Settings size={38} />
+          <Settings size={32} />
         </button>
         <div className="widget-divider" />
         <button 

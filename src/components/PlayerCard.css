@@ -64,8 +64,40 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  z-index: 3; /* <--- CRITICAL: Keeps Life text and Ring above the invisible +/- hitboxes so clicks don't bleed through! */
   pointer-events: none; /* Let taps pass through to buttons if needed */
+  transition: left 0.3s ease;
+}
+
+/* Shifts the entire Life Arena (including its invisible 50/50 click-zones) to lock to 66.6% width */
+.arena-shift-left { 
+  width: 66.666%; 
+  margin-right: auto; 
+}
+.arena-shift-right { 
+  width: 66.666%; 
+  margin-left: auto; 
+}
+
+.life-display-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.life-ring {
+  position: absolute;
+  top: 52%; /* Nudged down slightly from 50% dead-center */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  background-color: transparent;
+  border: 4px solid rgba(51, 51, 51, 0.4); /* #333333 at 40% opacity */
+  border-radius: 50%;
+  pointer-events: auto; /* Catch exact-life long press exclusively here */
+  z-index: 5;
 }
 
 .life-total {
@@ -74,7 +106,9 @@
   color: #ffffff;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  pointer-events: auto; /* Allow long pressing the number itself */
+  pointer-events: none; /* Pass through to life-ring */
+  position: relative;
+  z-index: 10;
 }
 
 .life-total.dead {
@@ -87,7 +121,7 @@
   font-weight: bold;
   position: absolute;
   top: 50%;
-  right: -80px; /* Position to the right side next to life total */
+  right: -100px; /* Shifted slightly closer to the font compared to -130px */
   transform: translateY(-50%);
   z-index: 10;
   animation: floatRight 0.3s ease-out forwards;
@@ -100,6 +134,30 @@
 @keyframes floatRight {
   from { opacity: 0; transform: translate(-10px, -50%) scale(0.8); }
   to { opacity: 1; transform: translate(0, -50%) scale(1); }
+}
+
+.delta-2x2-container {
+  position: absolute;
+  bottom: 84px; /* Place securely above the 2x2 grid */
+  width: 33.333%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.life-delta.life-delta-2x2 {
+  position: static;
+  transform: none;
+  animation: floatUp 0.3s ease-out forwards;
+}
+
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .life-form {
@@ -120,14 +178,26 @@
 
 /* Commander Damage Horizontal Row */
 .commander-damage-row {
-  min-height: 60px; /* Minimum height ensures at least 1 row */
+  min-height: 48px; /* Minimum height ensures at least 1 row */
   background: transparent;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center; /* Center horizontally */
-  padding: 8px;
+  padding: 4px;
   overflow: visible; /* Allow delta to float up out of bounds */
+}
+
+.absolute-row {
+  position: absolute;
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%;
+  pointer-events: none; /* Let taps pass through to buttons under empty space */
+}
+.absolute-row > * { 
+  pointer-events: auto; 
 }
 
 /* Hide scrollbar for a cleaner look */
@@ -154,8 +224,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  border-radius: 16px;
+  height: 28px;
+  border-radius: 14px;
   padding: 0 2px;
   flex: 1 1 0; /* Grow and shrink dynamically */
   min-width: 0; /* Let it shrink below content strictly if needed */
@@ -170,14 +240,14 @@
 }
 
 .cmd-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0; /* Ensures buttons don't deform on tiny screens */
   border-radius: 50%;
   border: none;
   background: transparent;
   color: white;
-  font-size: 1.2rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,3 +274,52 @@
 .cmd-value.lethal {
   color: #000;
 }
+
+/* D-Pad Setup for Head-To-Head */
+.cmd-dpad {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  align-items: center;
+  justify-items: stretch; /* Stretch to fill the 1fr fraction */
+  width: 75%; /* 3 columns * 25% = 75%, leaving 12.5% (1/8) margin on left/right edges */
+  margin: 0 auto;
+}
+
+/* 3-Player Player C Center Grid */
+.cmd-3player-center {
+  grid-template-columns: 1fr 1fr;
+  width: 50%;
+}
+.cmd-3player-center .dpad-left { grid-column: 1; grid-row: 1; }
+.cmd-3player-center .dpad-right { grid-column: 2; grid-row: 1; }
+.cmd-3player-center .dpad-center { grid-column: 1 / span 2; grid-row: 2; justify-self: center; width: 50%; }
+
+.dpad-up { grid-column: 2; grid-row: 1; }
+.dpad-left { grid-column: 1; grid-row: 2; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-center { grid-column: 2; grid-row: 2; }
+
+/* 2x2 Corner Grid Setup for Default 4-Player Layout */
+.cmd-2x2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  width: 33.333%; /* Explicitly 2 columns of 1/6th = 1/3rd = 33.33% */
+  position: absolute;
+  bottom: 8px; /* Perfectly match the side margins */
+  padding: 0;
+  box-sizing: border-box;
+  justify-items: stretch;
+  z-index: 10;
+}
+
+.cmd-pos-left { left: 8px; }
+.cmd-pos-right { right: 8px; }
+
+.grid-tl { grid-column: 1; grid-row: 1; }
+.grid-tr { grid-column: 2; grid-row: 1; }
+.grid-bl { grid-column: 1; grid-row: 2; }
+.grid-br { grid-column: 2; grid-row: 2; }
