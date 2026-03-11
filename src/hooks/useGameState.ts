@@ -1,19 +1,23 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Player, GameState } from '../models/types';
-
-// Helper to generate initial players
-const generateInitialPlayers = (count: number): Player[] => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: `player-${i + 1}`,
-    name: `Player ${i + 1}`,
-    life: 40, // Standard starting life for Commander
-    poison: 0,
-    commanderDamage: {},
-  }));
-};
+import type { GameState, Player } from '../models/types';
 
 const MAX_PLAYERS = 4;
 const MIN_PLAYERS = 2;
+
+const createPlayer = (id: string, name: string): Player => ({
+  id,
+  name,
+  life: 40, // Standard starting life for Commander
+  poison: 0,
+  commanderDamage: {},
+});
+
+// Helper to generate initial players
+const generateInitialPlayers = (count: number): Player[] => {
+  return Array.from({ length: count }).map((_, i) =>
+    createPlayer(`player-${i + 1}`, `Player ${i + 1}`)
+  );
+};
 
 export const useGameState = (initialPlayerCount: number = 4) => {
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -103,31 +107,25 @@ export const useGameState = (initialPlayerCount: number = 4) => {
     []
   );
 
-  const setPlayerCount = useCallback((count: number) => {
-    const newCount = Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, count));
-    setGameState((prev) => {
+  const setPlayerCount = useCallback((count: number, variant: 'default' | 'head-to-head' = 'default') => {
+    // Only 2, 3, or 4 are allowed
+    const validCount = Math.max(MIN_PLAYERS, Math.min(count, MAX_PLAYERS));
+    setGameState(prev => {
       let newPlayers = [...prev.players];
-      if (newCount > prev.playerCount) {
-        // Add new players
-        const playersToAdd = newCount - prev.playerCount;
-        for (let i = 0; i < playersToAdd; i++) {
-          const nextIndex = prev.playerCount + i + 1;
-          newPlayers.push({
-            id: `player-${nextIndex}`,
-            name: `Player ${nextIndex}`,
-            life: 40,
-            poison: 0,
-            commanderDamage: {},
-          });
+      if (validCount > prev.players.length) {
+        // Add players
+        for (let i = prev.players.length; i < validCount; i++) {
+          newPlayers.push(createPlayer(`player-${i + 1}`, `Player ${i + 1}`));
         }
-      } else if (newCount < prev.playerCount) {
+      } else if (validCount < prev.players.length) {
         // Remove players
-        newPlayers = newPlayers.slice(0, newCount);
+        newPlayers = newPlayers.slice(0, validCount);
       }
       return {
         ...prev,
         players: newPlayers,
-        playerCount: newCount,
+        playerCount: validCount,
+        layoutVariant: variant,
       };
     });
   }, []);

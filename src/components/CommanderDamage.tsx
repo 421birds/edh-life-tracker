@@ -30,6 +30,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   };
 
   const handleSub = () => {
+    if (damageAmount <= 0) return;
     onSub();
     setCmdDelta(prev => prev - 1);
     setShowDelta(true);

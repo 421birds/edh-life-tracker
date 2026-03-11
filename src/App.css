@@ -46,6 +46,16 @@
   grid-template-rows: repeat(2, 1fr);
 }
 
+/* 4 Players: Head-to-Head (Top/Bottom span, Left/Right middle) */
+.grid-4-h2h {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr 2fr 1fr;
+}
+.grid-4-h2h > .player-wrapper:nth-child(1),
+.grid-4-h2h > .player-wrapper:nth-child(4) {
+  grid-column: span 2;
+}
+
 /* Center Split Widget */
 .center-widget {
   position: absolute;
@@ -80,13 +90,11 @@
 }
 
 .widget-top {
-  align-items: flex-end;
   padding-bottom: 2px;
 }
 
 .widget-bottom {
-  align-items: flex-start;
-  padding-top: 2px;
+  padding-top: 0px;
 }
 
 .widget-divider {
@@ -96,8 +104,10 @@
 }
 
 .turn-label {
-  font-size: 1.1rem;
+  font-size: 1.6rem;
   font-weight: bold;
+  line-height: 1; /* Squashes invisible text box height */
+  margin-top: -6px; /* Physically pull text upwards closer to divider */
 }
 
 .settings-overlay {

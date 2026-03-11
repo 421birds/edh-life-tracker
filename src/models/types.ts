@@ -10,5 +10,6 @@ export interface Player {
 export interface GameState {
   players: Player[];
   playerCount: number;
+  layoutVariant?: 'default' | 'head-to-head';
   turn: number;
 }
