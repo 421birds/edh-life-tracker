@@ -4,7 +4,7 @@ import { CommanderSearch } from './components/CommanderSearch';
 import type { Commander } from './models/types';
 import './App.css';
 import './App.css';
-import { Settings, Sparkles, Users, Play, Pause } from 'lucide-react';
+import { Settings, Sparkles, Users, Play, Pause, RotateCcw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useWakeLock } from './hooks/useWakeLock';
 
@@ -232,7 +232,7 @@ function App() {
                   <Sparkles size={24} color={gameState.isAdvancedMode ? '#d69e2e' : '#fff'} />
                 </button>
                 <button className="radial-btn radial-bottom" onClick={() => { resetGame(); setShowSettings(false); }}>
-                  ⟲
+                  <RotateCcw size={24} />
                 </button>
               </>
             )}
