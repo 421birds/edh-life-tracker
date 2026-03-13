@@ -14,6 +14,7 @@ interface CommanderDamageProps {
   wrapperClass?: string;
   commander?: Commander;
   isAdvancedMode?: boolean;
+  disabled?: boolean;
 }
 
 export const CommanderDamage: React.FC<CommanderDamageProps> = ({
@@ -27,6 +28,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   commander,
   isAdvancedMode = false,
   opponentId,
+  disabled = false,
 }) => {
   const [cmdDelta, setCmdDelta] = useState(0);
   const [showDelta, setShowDelta] = useState(false);
@@ -85,7 +87,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
         <button 
           className="cmd-btn cmd-sub" 
           {...subHold.handlers}
-          disabled={damageAmount === 0 && !subHold.isPressing}
+          disabled={disabled || (damageAmount === 0 && !subHold.isPressing)}
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
         >
           -
@@ -98,6 +100,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
         <button 
           className="cmd-btn cmd-add" 
           {...addHold.handlers}
+          disabled={disabled}
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
         >
           +

@@ -4,9 +4,10 @@ import { CommanderSearch } from './components/CommanderSearch';
 import type { Commander } from './models/types';
 import './App.css';
 import './App.css';
-import { Settings, Sparkles, Users, Play, Pause, RotateCcw } from 'lucide-react';
+import { Settings, Sparkles, Users, Play, Pause, RotateCcw, History } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useWakeLock } from './hooks/useWakeLock';
+import { HistoryOverlay } from './components/HistoryOverlay';
 
 const DicePips = ({ count }: { count: number }) => {
   return (
@@ -80,6 +81,7 @@ function App() {
     updateLife,
     updateCommanderDamage,
     setPlayerCount,
+    updatePlayerName,
     resetGame,
     setLifeExact,
     updatePoison,
@@ -87,13 +89,17 @@ function App() {
     setAdvancedMode,
     setCommander,
     startGameTimer,
-    toggleTimer
+    toggleTimer,
+    confirmDeath,
+    revivePlayer,
+    endGame,
   } = useGameState(4);
 
   useWakeLock(true);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showPlayerCountMenu, setShowPlayerCountMenu] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [searchingPlayerId, setSearchingPlayerId] = useState<string | null>(null);
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -168,6 +174,9 @@ function App() {
                 layoutVariant={gameState.layoutVariant}
                 isAdvancedMode={gameState.isAdvancedMode}
                 onSearchCommander={() => setSearchingPlayerId(player.id)}
+                onUpdateName={(newName) => updatePlayerName(player.id, newName)}
+                onConfirmDeath={(cause) => confirmDeath(player.id, cause)}
+                onRevive={() => revivePlayer(player.id)}
                 {...getCardOrientationProps(index, gameState.playerCount)}
               />
             </div>
@@ -223,12 +232,27 @@ function App() {
                   </div>
                 </button>
               </>
+            ) : gameState.isAdvancedMode ? (
+              <>
+                <button className="radial-btn radial-top" onClick={() => { setShowHistory(true); setShowSettings(false); }}>
+                  <History size={24} color="#fff" />
+                </button>
+                <button className="radial-btn radial-left" onClick={() => { setShowPlayerCountMenu(true); }}>
+                  <Users size={24} color="#fff" />
+                </button>
+                <button className="radial-btn radial-right active" onClick={() => { setAdvancedMode(false); setShowSettings(false); }}>
+                  <Sparkles size={24} color="#d69e2e" />
+                </button>
+                <button className="radial-btn radial-bottom" onClick={() => { resetGame(); setShowSettings(false); }}>
+                  <RotateCcw size={24} />
+                </button>
+              </>
             ) : (
               <>
                 <button className="radial-btn radial-top-left" onClick={() => { setShowPlayerCountMenu(true); }}>
                   <Users size={24} color="#fff" />
                 </button>
-                <button className={`radial-btn radial-top-right ${gameState.isAdvancedMode ? 'active' : ''}`} onClick={() => { setAdvancedMode(!gameState.isAdvancedMode); setShowSettings(false); }}>
+                <button className="radial-btn radial-top-right ${gameState.isAdvancedMode ? 'active' : ''}" onClick={() => { setAdvancedMode(!gameState.isAdvancedMode); setShowSettings(false); }}>
                   <Sparkles size={24} color={gameState.isAdvancedMode ? '#d69e2e' : '#fff'} />
                 </button>
                 <button className="radial-btn radial-bottom" onClick={() => { resetGame(); setShowSettings(false); }}>
@@ -246,16 +270,27 @@ function App() {
               currentSegmentStart={gameState.currentSegmentStart}
               onToggle={toggleTimer}
             />
+            {gameState.gameStartTime && (
+              <button className="end-game-btn" onClick={() => { endGame(); setShowSettings(false); }}>
+                END GAME
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {searchingPlayerId && (
         <CommanderSearch
-          playerName={gameState.players.find(p => p.id === searchingPlayerId)?.name || 'Player'}
-          onSelect={(commander: Commander) => setCommander(searchingPlayerId, commander)}
+          initialName={gameState.players.find(p => p.id === searchingPlayerId)?.name}
+          onSelect={(name: string, commander: Commander) => {
+            updatePlayerName(searchingPlayerId, name);
+            setCommander(searchingPlayerId, commander);
+          }}
           onClose={() => setSearchingPlayerId(null)}
         />
+      )}
+      {showHistory && (
+        <HistoryOverlay onClose={() => setShowHistory(false)} />
       )}
     </div>
   );

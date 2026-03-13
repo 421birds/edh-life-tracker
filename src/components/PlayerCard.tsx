@@ -19,6 +19,9 @@ interface PlayerCardProps {
   layoutVariant?: 'default' | 'head-to-head';
   isAdvancedMode?: boolean;
   onSearchCommander?: () => void;
+  onUpdateName?: (newName: string) => void;
+  onConfirmDeath?: (cause: 'life' | 'poison' | 'commander-damage' | 'conceded' | 'mill' | 'alt-win-con') => void;
+  onRevive?: () => void;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -35,8 +38,11 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   layoutVariant = 'default',
   isAdvancedMode = false,
   onSearchCommander,
+  onConfirmDeath,
+  onRevive,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const justRevivedRef = React.useRef(false);
   const { width, height, isLandscape } = useCardOrientation(containerRef);
   // Delta tracking for long press visual feedback
   const [lifeDelta, setLifeDelta] = useState(0);
@@ -58,6 +64,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   };
   const [isEditingLife, setIsEditingLife] = useState(false);
   const [exactLifeInput, setExactLifeInput] = useState(player.life.toString());
+
+  const [pendingDeathCause, setPendingDeathCause] = useState<'life' | 'poison' | 'commander-damage' | 'conceded' | 'mill' | 'alt-win-con' | null>(null);
+  const [showDeathConfirm, setShowDeathConfirm] = useState(false);
+  const [showManualDeathPopup, setShowManualDeathPopup] = useState(false);
 
   // Wrap the exact setter handle
   const handleLifeSubmit = (e: React.FormEvent) => {
@@ -103,6 +113,56 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     setIsEditingLife(true);
   }, 600, 999999, false); // Huge interval, strictly fires ONLY after 600ms hold
 
+  // Lethal Detection Logic
+  // Detect lethal conditions and show confirmation after a short delay
+  React.useEffect(() => {
+    // Only detect if not already dead
+    if (player.deathStatus || justRevivedRef.current) return;
+
+    let cause: 'life' | 'poison' | 'commander-damage' | 'conceded' | null = null;
+    if (player.life <= 0) cause = 'life';
+    else if (player.poison >= 10) cause = 'poison';
+    else if (Object.values(player.commanderDamage).some(dmg => dmg >= 21)) cause = 'commander-damage';
+
+    if (cause) {
+      setPendingDeathCause(cause);
+      const timer = setTimeout(() => {
+        setShowDeathConfirm(true);
+      }, 1000); // 1s debounce for lethal detection
+      return () => clearTimeout(timer);
+    } else {
+      setShowDeathConfirm(false);
+      setPendingDeathCause(null);
+    }
+  }, [player.life, player.poison, player.commanderDamage, player.deathStatus]);
+
+  // Reset justRevivedRef when values change (meaning a manual change was made)
+  React.useEffect(() => {
+    if (justRevivedRef.current) {
+      justRevivedRef.current = false;
+    }
+  }, [player.life, player.poison, player.commanderDamage]);
+
+  const handleConfirmDeath = () => {
+    if (pendingDeathCause && onConfirmDeath) {
+      onConfirmDeath(pendingDeathCause);
+    }
+    setShowDeathConfirm(false);
+  };
+
+  const bannerHold = useContinuousHold(() => {
+    if (player.deathStatus && onRevive) {
+      justRevivedRef.current = true;
+      onRevive();
+    }
+  }, 1000, 999999, false);
+
+  const tagHold = useContinuousHold(() => {
+    if (player.commander && onSearchCommander) {
+      onSearchCommander();
+    }
+  }, 600, 999999, false);
+
   // Intercept the pointerDown event to ensure it doesn't inadvertently trigger the +/- buttons under the ring in some browsers
   const handleRingPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -120,6 +180,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     display: 'flex',
     flexDirection: 'column',
     transition: 'transform 0.3s ease',
+    zIndex: isEditingLife ? 110 : 1,
+    pointerEvents: isEditingLife ? 'none' : 'auto',
   };
 
   if (forceRotation !== undefined) {
@@ -183,7 +245,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
 
   return (
     <div 
-      className={`player-card-container ${colorClass} ${isAdvancedMode ? 'advanced-mode' : ''}`} 
+      className={`player-card-container ${colorClass} ${isAdvancedMode ? 'advanced-mode' : ''} ${player.deathStatus ? 'is-defeated' : ''}`} 
       ref={containerRef}
       style={borderStyle}
     >
@@ -191,8 +253,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       {/* Invisible Full-Card Intercept Overlay: Active ONLY when Numpad is Open */}
       {isEditingLife && (
         <div 
-          className="absolute-row" 
-          style={{ zIndex: 100, pointerEvents: 'auto' }} 
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, pointerEvents: 'auto' }} 
           onPointerDown={() => setIsEditingLife(false)} 
         />
       )}
@@ -206,10 +267,12 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         <button 
           className="life-btn giant-sub" 
           {...subHold.handlers}
+          disabled={isEditingLife || showManualDeathPopup || showDeathConfirm}
+          style={{ pointerEvents: (isEditingLife || showManualDeathPopup || showDeathConfirm) ? 'none' : 'auto' }}
         >
         </button>
         
-        <div className="center-info-container">
+        <div className={`center-info-container ${isEditingLife ? 'is-editing' : ''}`} style={{ pointerEvents: 'auto' }}>
           {!isUseCornerGrid && showDelta && lifeDelta !== 0 && (
             <div className={`life-delta ${lifeDelta > 0 ? 'positive' : 'negative'}`}>
               {lifeDelta > 0 ? '+' : ''}{lifeDelta}
@@ -241,9 +304,13 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   className="life-input"
                   value={exactLifeInput}
                   onChange={(e) => setExactLifeInput(e.target.value)}
-                  onBlur={handleLifeSubmit}
                   autoFocus
                 />
+                <div className="numpad-actions" style={{ pointerEvents: 'auto' }}>
+                  <button type="button" className="declare-dead-btn" onClick={(e) => { e.stopPropagation(); setShowManualDeathPopup(true); }}>
+                    DECLARE DEAD
+                  </button>
+                </div>
               </form>
             ) : (
               <div 
@@ -254,10 +321,23 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
             )}
             {isAdvancedMode && !isH2H && (
               <div 
-                className="commander-name-tag" 
-                onClick={(e) => { e.stopPropagation(); onSearchCommander?.(); }}
+                className={`commander-name-tag ${player.commander ? 'has-commander' : ''}`} 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (!player.commander) onSearchCommander?.(); 
+                }}
+                style={{ pointerEvents: (isEditingLife || showManualDeathPopup || showDeathConfirm) ? 'none' : 'auto' }}
+                {...(player.commander ? tagHold.handlers : {})}
               >
-                {player.commander?.name || 'Tap to set Commander'}
+                {player.commander ? (
+                  <>
+                    <span className="tag-player-name">{player.name}</span>
+                    <span className="tag-divider">|</span>
+                    <span className="tag-commander-name">{player.commander.name}</span>
+                  </>
+                ) : (
+                  'take a seat'
+                )}
               </div>
             )}
           </div>
@@ -266,16 +346,38 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         <button 
           className="life-btn giant-add" 
           {...addHold.handlers}
+          disabled={isEditingLife || showManualDeathPopup || showDeathConfirm}
+          style={{ pointerEvents: (isEditingLife || showManualDeathPopup || showDeathConfirm) ? 'none' : 'auto' }}
         >
         </button>
       </div>
 
       {isAdvancedMode && isH2H && (
         <div 
-          className="commander-name-tag tag-h2h" 
-          onClick={(e) => { e.stopPropagation(); onSearchCommander?.(); }}
+          className={`commander-name-tag tag-h2h ${player.commander ? 'has-commander' : ''}`} 
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            if (!player.commander) onSearchCommander?.(); 
+          }}
+          {...(player.commander ? tagHold.handlers : {})}
         >
-          {player.commander?.name || 'Tap to set Commander'}
+          {player.commander ? (
+            <>
+              <span className="tag-player-name">{player.name}</span>
+              <span className="tag-divider">|</span>
+              <span className="tag-commander-name">{player.commander.name}</span>
+            </>
+          ) : (
+            'take a seat'
+          )}
+        </div>
+      )}
+
+
+      {player.deathStatus && (
+        <div className="death-banner" {...bannerHold.handlers}>
+          <div className="death-title">DEFEATED</div>
+          <div className="death-reason">{player.deathStatus.cause === 'life' ? 'loss of life' : player.deathStatus.cause?.replace('-', ' ')}</div>
         </div>
       )}
 
@@ -309,6 +411,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               lethalThreshold={10}
               wrapperClass={isH2H || is3PlayerCenter ? "dpad-center" : isUseCornerGrid ? (isLeftAligned ? "grid-bl" : "grid-br") : ""}
               isAdvancedMode={isAdvancedMode}
+              disabled={showManualDeathPopup || showDeathConfirm}
             />
             {opponents.map((opp) => {
               let posClass = "";
@@ -366,9 +469,34 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   wrapperClass={posClass}
                   commander={isAdvancedMode ? opp.commander : undefined}
                   isAdvancedMode={isAdvancedMode}
+                  disabled={showManualDeathPopup || showDeathConfirm}
                 />
               )
             })}
+          </div>
+        </div>
+      )}
+      {showDeathConfirm && !player.deathStatus && (
+        <div className="death-confirm-overlay">
+          <div className="death-confirm-card">
+            <h3>Player Defeated?</h3>
+            <p>Reason: {pendingDeathCause?.replace('-', ' ')}</p>
+            <div className="death-confirm-btns">
+              <button className="confirm-btn" onClick={handleConfirmDeath}>CONFIRM</button>
+              <button className="cancel-btn" onClick={() => setShowDeathConfirm(false)}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManualDeathPopup && (
+        <div className="death-confirm-overlay" onClick={() => setShowManualDeathPopup(false)}>
+          <div className="death-confirm-card compact-death-card" onClick={(e) => e.stopPropagation()}>
+            <div className="manual-death-grid">
+               <button className="death-option-btn" onClick={() => { onConfirmDeath?.('mill'); setShowManualDeathPopup(false); setIsEditingLife(false); }}>MILL</button>
+               <button className="death-option-btn" onClick={() => { onConfirmDeath?.('alt-win-con'); setShowManualDeathPopup(false); setIsEditingLife(false); }}>ALT WIN CON</button>
+               <button className="death-option-btn" onClick={() => { onConfirmDeath?.('conceded'); setShowManualDeathPopup(false); setIsEditingLife(false); }}>CONCEDED</button>
+            </div>
           </div>
         </div>
       )}

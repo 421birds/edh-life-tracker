@@ -4,86 +4,139 @@ import { searchCommanders } from '../services/scryfall';
 import type { Commander } from '../models/types';
 
 interface CommanderSearchProps {
-  onSelect: (commander: Commander) => void;
+  onSelect: (name: string, commander: Commander) => void;
   onClose: () => void;
-  playerName: string;
+  initialName?: string;
 }
 
-export const CommanderSearch: React.FC<CommanderSearchProps> = ({ onSelect, onClose, playerName }) => {
+const STORAGE_KEY = 'edh_player_names';
+
+const getSuggestions = (): string[] => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored ? JSON.parse(stored) : [];
+};
+
+const saveName = (name: string) => {
+  if (!name.trim()) return;
+  const names = getSuggestions();
+  if (!names.includes(name)) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([name, ...names].slice(0, 20)));
+  }
+};
+
+export const CommanderSearch: React.FC<CommanderSearchProps> = ({ onSelect, onClose, initialName = '' }) => {
+  const [step, setStep] = useState<'name' | 'commander'>(initialName ? 'commander' : 'name');
+  const [name, setName] = useState(initialName);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Commander[]>([]);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        // Modal level click-outside logic if needed
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    setSuggestions(getSuggestions());
   }, []);
 
   const handleSearch = async (commanderName: string) => {
     if (commanderName.length < 3) return;
-    setQuery(commanderName);
     setLoading(true);
     const data = await searchCommanders(commanderName);
     setResults(data);
     setLoading(false);
   };
 
-  // Use a debounced search effect instead of plain autocomplete to provide pre-filtered results
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query.length >= 3) {
+    if (step === 'commander' && query.length >= 3) {
+      const timer = setTimeout(() => {
         handleSearch(query);
-      }
-    }, 500); // 500ms debounce
-    return () => clearTimeout(timer);
-  }, [query]);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [query, step]);
 
-  const onInputChange = (val: string) => {
-    setQuery(val);
+  const handleNameSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (name.trim()) {
+      saveName(name);
+      setStep('commander');
+    }
   };
+
 
   return (
     <div className="commander-search-overlay" onClick={onClose}>
       <div className="commander-search-modal" onClick={e => e.stopPropagation()} ref={searchRef}>
         <div className="search-header">
-          <h3>Set Commander for {playerName}</h3>
+          <h3>{step === 'name' ? 'Enter Player Name' : `Search Commander for ${name}`}</h3>
           <button className="close-btn" onClick={onClose}><X size={20} /></button>
         </div>
 
-        <div className="search-input-wrapper">
-          <input
-            type="text"
-            placeholder="Type name (e.g. 'Atraxa')..."
-            value={query}
-            onChange={e => onInputChange(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch(query)}
-          />
-          <button className="search-action-btn" onClick={() => handleSearch(query)}>
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
-          </button>
-        </div>
-
-        <div className="search-results">
-          {results.map(card => (
-            <div key={`${card.name}-${card.artCrop}`} className="result-card" onClick={() => { onSelect(card); onClose(); }}>
-              {card.artCrop && (
-                <div className="result-art" style={{ backgroundImage: `url(${card.artCrop})` }} />
-              )}
-              <div className="result-info">
-                <span className="result-name">{card.name}</span>
+        {step === 'name' ? (
+          <div className="name-input-section">
+            <form onSubmit={handleNameSubmit} className="search-input-wrapper">
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type="text"
+                  placeholder="Player name..."
+                  value={name}
+                  onChange={e => { setName(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  autoFocus
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="suggestions-list">
+                    {suggestions
+                      .filter(s => s.toLowerCase().includes(name.toLowerCase()))
+                      .map(s => (
+                        <div 
+                          key={s} 
+                          className="suggestion-item" 
+                          onClick={() => { setName(s); setShowSuggestions(false); }}
+                        >
+                          {s}
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
+              <button className="search-action-btn" onClick={() => handleNameSubmit()}>NEXT</button>
+            </form>
+          </div>
+        ) : (
+          <>
+            <div className="search-input-wrapper">
+              <input
+                type="text"
+                placeholder="Type name (e.g. 'Atraxa')..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch(query)}
+                autoFocus
+              />
+              <button className="search-action-btn" onClick={() => handleSearch(query)}>
+                {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
+              </button>
             </div>
-          ))}
-          {!loading && results.length === 0 && query.length >= 3 && (
-            <div className="no-results">No commanders found matching "{query}"</div>
-          )}
-        </div>
+
+            <div className="search-results">
+              {results.map(card => (
+                <div key={`${card.name}-${card.artCrop}`} className="result-card" onClick={() => { onSelect(name, card); onClose(); }}>
+                  {card.artCrop && (
+                    <div className="result-art" style={{ backgroundImage: `url(${card.artCrop})` }} />
+                  )}
+                  <div className="result-info">
+                    <span className="result-name">{card.name}</span>
+                  </div>
+                </div>
+              ))}
+              {!loading && results.length === 0 && query.length >= 3 && (
+                <div className="no-results">No commanders found matching "{query}"</div>
+              )}
+            </div>
+            <button className="back-to-name-btn" onClick={() => setStep('name')}>Change Name</button>
+          </>
+        )}
       </div>
 
       <style>{`
@@ -106,7 +159,7 @@ export const CommanderSearch: React.FC<CommanderSearchProps> = ({ onSelect, onCl
           display: flex;
           flex-direction: column;
           max-height: 80vh;
-          overflow: hidden;
+          overflow: visible; /* Allow suggestions list to overflow modal */
         }
         .search-header {
           padding: 16px;
@@ -150,8 +203,10 @@ export const CommanderSearch: React.FC<CommanderSearchProps> = ({ onSelect, onCl
           border: 1px solid #444;
           border-top: none;
           z-index: 10;
-          max-height: 200px;
+          max-height: 250px;
           overflow-y: auto;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          border-radius: 0 0 8px 8px;
         }
         .suggestion-item {
           padding: 10px 12px;
@@ -194,6 +249,14 @@ export const CommanderSearch: React.FC<CommanderSearchProps> = ({ onSelect, onCl
         }
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .back-to-name-btn {
+          margin: 0 16px 16px;
+          background: none;
+          border: 1px solid #444;
+          color: #888;
+          padding: 8px;
+          border-radius: 6px;
+        }
       `}</style>
     </div>
   );

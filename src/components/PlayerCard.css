@@ -86,9 +86,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 3; /* <--- CRITICAL: Keeps Life text and Ring above the invisible +/- hitboxes so clicks don't bleed through! */
-  pointer-events: none; /* Let taps pass through to buttons if needed */
+  z-index: 3; 
+  pointer-events: auto; /* Ensure center info is interactive */
   transition: left 0.3s ease;
+}
+
+.center-info-container.is-editing {
+  z-index: 110; /* Above the intercepting absolute-row (z-index 100) */
+  pointer-events: auto;
 }
 
 /* Shifts the entire Life Arena (including its invisible 50/50 click-zones) to lock to 66.6% width */
@@ -150,6 +155,7 @@
   cursor: pointer;
   pointer-events: auto;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent; /* Fix blue highlight on tap */
 }
 
 .commander-name-tag.tag-h2h {
@@ -169,7 +175,7 @@
 }
 
 
-.commander-name-tag:hover {
+.commander-name-tag:not(.has-commander):hover {
   background: rgba(49, 130, 206, 0.8);
   border-color: #3182ce;
 }
@@ -276,6 +282,7 @@
   justify-content: center; /* Center horizontally */
   padding: 4px;
   overflow: visible; /* Allow delta to float up out of bounds */
+  pointer-events: auto; /* Restores large card interactions */
 }
 
 .absolute-row {
@@ -421,3 +428,211 @@
 .grid-tr { grid-column: 2; grid-row: 1; }
 .grid-bl { grid-column: 1; grid-row: 2; }
 .grid-br { grid-column: 2; grid-row: 2; }
+.name-input {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  width: 100%;
+  outline: none;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+}
+
+.death-confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-out;
+  pointer-events: auto; /* Ensure popup blocks background and IS interactive */
+}
+
+.death-confirm-card {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  max-width: 80%;
+}
+
+.death-confirm-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.death-confirm-card p {
+  color: #ff4444;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 24px;
+}
+
+.death-confirm-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.death-confirm-btns button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-btn {
+  background: #ff4444;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+.confirm-btn:active {
+  transform: scale(0.95);
+}
+
+.cancel-btn {
+  background: #333;
+  color: #eee;
+  border: 1px solid #444;
+}
+
+.death-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  background: #aa0000;
+  color: white;
+  padding: 12px 24px;
+  z-index: 900;
+  border: 5px solid white;
+  pointer-events: auto; /* Allow revival long-press */
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.death-title {
+  font-weight: 900;
+  font-size: 1.8rem;
+  letter-spacing: 2px;
+}
+
+.death-reason {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-top: -4px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tag-divider {
+  margin: 0 6px;
+  opacity: 0.6;
+  font-weight: 300;
+}
+
+.tag-player-name {
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.tag-commander-name {
+  font-weight: 700;
+}
+
+/* Disable actions on defeated cards */
+.player-card-container.is-defeated .life-btn,
+.player-card-container.is-defeated .life-ring,
+.player-card-container.is-defeated .commander-damage-row,
+.player-card-container.is-defeated .commander-name-tag {
+  pointer-events: none;
+  opacity: 0.3;
+  filter: grayscale(0.5) blur(1px);
+}
+
+.player-card-container.is-defeated .death-banner {
+  pointer-events: auto !important;
+  opacity: 1;
+  filter: none;
+}
+
+/* Numpad/Declare Dead Styles */
+.numpad-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  width: 100%;
+}
+
+.declare-dead-btn {
+  background: rgba(229, 62, 62, 0.15);
+  border: 1px solid rgba(229, 62, 62, 0.5);
+  color: #feb2b2;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.compact-death-card {
+  padding: 12px;
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(8px);
+  pointer-events: auto; /* Explicitly interactive */
+}
+
+.manual-death-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 140px;
+}
+
+.death-option-btn {
+  background: #2d2d2d;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.1s;
+}
+
+.death-option-btn:active {
+  background: #444;
+  transform: scale(0.95);
+}
+
+.manual-death-menu {
+  display: none; /* Removed in favor of popup */
+}

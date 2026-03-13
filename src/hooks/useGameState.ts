@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { GameState, Player, Commander } from '../models/types';
+import type { GameState, Player, Commander, GameRecord, PlayerHistorySummary } from '../models/types';
+import { historyService } from '../services/historyService';
 
 const MAX_PLAYERS = 4;
 const MIN_PLAYERS = 2;
@@ -7,16 +8,20 @@ const MIN_PLAYERS = 2;
 const createPlayer = (id: string, name: string): Player => ({
   id,
   name,
-  life: 40, // Standard starting life for Commander
+  life: 40,
   poison: 0,
   commanderDamage: {},
+  color: '#222', // Default color, will be overridden by theme/artwork
+  deathStatus: null,
 });
 
 // Helper to generate initial players
-const generateInitialPlayers = (count: number): Player[] => {
-  return Array.from({ length: count }).map((_, i) =>
-    createPlayer(`player-${i + 1}`, `Player ${i + 1}`)
-  );
+const generateInitialPlayers = (count: number, existingPlayers: Player[] = []): Player[] => {
+  return Array.from({ length: count }).map((_, i) => {
+    const id = `player-${i + 1}`;
+    const existing = existingPlayers.find(p => p.id === id);
+    return createPlayer(id, existing?.name || `Player ${i + 1}`);
+  });
 };
 
 export const useGameState = (initialPlayerCount: number = 4) => {
@@ -147,7 +152,7 @@ export const useGameState = (initialPlayerCount: number = 4) => {
   const resetGame = useCallback(() => {
     setGameState((prev) => ({
       ...prev,
-      players: generateInitialPlayers(prev.playerCount),
+      players: generateInitialPlayers(prev.playerCount, prev.players),
       turn: 1,
       gameStartTime: null,
       isTimerRunning: false,
@@ -155,6 +160,55 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       currentSegmentStart: null,
     }));
   }, []);
+
+  const confirmDeath = useCallback((playerId: string, cause: 'life' | 'poison' | 'commander-damage' | 'conceded' | 'mill' | 'alt-win-con') => {
+    setGameState((prev) => ({
+      ...prev,
+      players: prev.players.map((p) =>
+        p.id === playerId ? { ...p, deathStatus: { turn: prev.turn, cause } } : p
+      ),
+    }));
+  }, []);
+
+  const revivePlayer = useCallback((playerId: string) => {
+    setGameState((prev) => ({
+      ...prev,
+      players: prev.players.map((p) =>
+        p.id === playerId ? { ...p, deathStatus: null } : p
+      ),
+    }));
+  }, []);
+
+  const endGame = useCallback(() => {
+    if (!gameState.gameStartTime) return;
+
+    const endTime = Date.now();
+    const totalElapsed = (gameState.elapsedBeforePause || 0) + 
+      (gameState.isTimerRunning && gameState.currentSegmentStart ? (endTime - gameState.currentSegmentStart) : 0);
+
+    const players: PlayerHistorySummary[] = gameState.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      commander: p.commander || null,
+      finalLife: p.life,
+      isWinner: !p.deathStatus,
+      deathTurn: p.deathStatus?.turn,
+      deathCause: p.deathStatus?.cause,
+    }));
+
+    const record: GameRecord = {
+      id: crypto.randomUUID(),
+      timestamp: gameState.gameStartTime,
+      endTime,
+      duration: totalElapsed,
+      playerCount: gameState.playerCount,
+      isAdvancedMode: gameState.isAdvancedMode,
+      players,
+    };
+
+    historyService.saveGame(record);
+    resetGame();
+  }, [gameState, resetGame]);
 
   const startGameTimer = useCallback(() => {
     setGameState(prev => ({
@@ -225,5 +279,8 @@ export const useGameState = (initialPlayerCount: number = 4) => {
     setCommander,
     startGameTimer,
     toggleTimer,
+    confirmDeath,
+    revivePlayer,
+    endGame,
   };
 };
