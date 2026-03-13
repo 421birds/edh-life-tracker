@@ -17,6 +17,8 @@ interface PlayerCardProps {
   flipHorizontal: boolean;
   forceRotation?: number;
   layoutVariant?: 'default' | 'head-to-head';
+  isAdvancedMode?: boolean;
+  onSearchCommander?: () => void;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -31,6 +33,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   flipHorizontal,
   forceRotation,
   layoutVariant = 'default',
+  isAdvancedMode = false,
+  onSearchCommander,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { width, height, isLandscape } = useCardOrientation(containerRef);
@@ -38,6 +42,12 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const [lifeDelta, setLifeDelta] = useState(0);
   const [showDelta, setShowDelta] = useState(false);
   const [trackerDelta, setTrackerDelta] = useState(0);
+  const [trackerDeltaLabel, setTrackerDeltaLabel] = useState<string | null>(null);
+
+  const handleTrackerDelta = (delta: number, label: string) => {
+    setTrackerDelta(delta);
+    setTrackerDeltaLabel(label);
+  };
   const [isEditingLife, setIsEditingLife] = useState(false);
   const [exactLifeInput, setExactLifeInput] = useState(player.life.toString());
 
@@ -138,8 +148,37 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const grid2x2PosClass = isLeftAligned ? 'cmd-pos-left' : 'cmd-pos-right';
   const lifeShiftClass = isUseCornerGrid ? (isLeftAligned ? 'arena-shift-right' : 'arena-shift-left') : '';
 
+  const cardBackgroundStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 0,
+  };
+  
+  if (isAdvancedMode && player.commander?.artCrop) {
+    cardBackgroundStyle.backgroundImage = `url(${player.commander.artCrop})`;
+    cardBackgroundStyle.backgroundSize = 'cover';
+    cardBackgroundStyle.backgroundPosition = 'center';
+  }
+
+  const borderStyle: React.CSSProperties = {};
+  if (isAdvancedMode && player.commander?.colorIdentity && player.commander.colorIdentity.length > 0) {  
+    // Dynamic border color based on identity
+    if (player.commander.colorIdentity.length > 0) {
+      const colorMap: Record<string, string> = {
+        'W': '#f9fafb', 'U': '#3182ce', 'B': '#1a202c', 'R': '#e53e3e', 'G': '#38a169'
+      };
+      const primaryColor = colorMap[player.commander.colorIdentity[0]];
+      borderStyle.borderColor = primaryColor;
+      borderStyle.boxShadow = `inset 0 0 40px rgba(0,0,0,0.6), 0 0 15px ${primaryColor}44`;
+    }
+  }
+
   return (
-    <div className={`player-card-container ${colorClass}`} ref={containerRef}>
+    <div 
+      className={`player-card-container ${colorClass} ${isAdvancedMode ? 'advanced-mode' : ''}`} 
+      ref={containerRef}
+      style={borderStyle}
+    >
       
       {/* Invisible Full-Card Intercept Overlay: Active ONLY when Numpad is Open */}
       {isEditingLife && (
@@ -152,6 +191,9 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
 
       {/* Rotated Internal Frame */}
       <div style={contentStyle}>
+        {/* Background Image inside rotated frame ensures correct orientation */}
+        <div style={cardBackgroundStyle} className="card-art-bg" />
+        
         <div className={`life-tracker-arena ${lifeShiftClass}`}>
         <button 
           className="life-btn giant-sub" 
@@ -167,6 +209,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           )}
           {!isUseCornerGrid && trackerDelta !== 0 && (
             <div className={`life-delta tracker-delta ${trackerDelta > 0 ? 'positive' : 'negative'}`}>
+              <div className="delta-label">{trackerDeltaLabel}</div>
               {trackerDelta > 0 ? '+' : ''}{trackerDelta}
             </div>
           )}
@@ -201,6 +244,14 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                 {player.life}
               </div>
             )}
+            {isAdvancedMode && !isH2H && (
+              <div 
+                className="commander-name-tag" 
+                onClick={(e) => { e.stopPropagation(); onSearchCommander?.(); }}
+              >
+                {player.commander?.name || 'Tap to set Commander'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -211,12 +262,22 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         </button>
       </div>
 
+      {isAdvancedMode && isH2H && (
+        <div 
+          className="commander-name-tag tag-h2h" 
+          onClick={(e) => { e.stopPropagation(); onSearchCommander?.(); }}
+        >
+          {player.commander?.name || 'Tap to set Commander'}
+        </div>
+      )}
+
       {opponents.length > 0 && (
         <div className={isUseCornerGrid ? 'absolute-row' : 'commander-damage-row'}>
           {isUseCornerGrid && (
             <div className={`delta-2x2-container ${grid2x2PosClass}`}>
               {trackerDelta !== 0 && (
                 <div className={`life-delta life-delta-2x2 tracker-delta ${trackerDelta > 0 ? 'positive' : 'negative'}`}>
+                  <div className="delta-label">{trackerDeltaLabel}</div>
                   {trackerDelta > 0 ? '+' : ''}{trackerDelta}
                 </div>
               )}
@@ -236,9 +297,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               onAdd={() => onPoisonChange(1)}
               onSub={() => onPoisonChange(-1)}
               colorClass="color-fill-poison"
-              onDeltaChange={setTrackerDelta}
+              onDeltaChange={handleTrackerDelta}
               lethalThreshold={10}
               wrapperClass={isH2H || is3PlayerCenter ? "dpad-center" : isUseCornerGrid ? (isLeftAligned ? "grid-bl" : "grid-br") : ""}
+              isAdvancedMode={isAdvancedMode}
             />
             {opponents.map((opp) => {
               let posClass = "";
@@ -292,8 +354,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   onAdd={() => onCommanderDamageChange(opp.id, 1)}
                   onSub={() => onCommanderDamageChange(opp.id, -1)}
                   colorClass={`color-fill-${opp.id.split('-')[1]}`} 
-                  onDeltaChange={setTrackerDelta}
+                  onDeltaChange={handleTrackerDelta}
                   wrapperClass={posClass}
+                  commander={isAdvancedMode ? opp.commander : undefined}
+                  isAdvancedMode={isAdvancedMode}
                 />
               )
             })}

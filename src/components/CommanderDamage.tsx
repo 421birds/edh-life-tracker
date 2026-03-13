@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useContinuousHold } from '../hooks/useContinuousHold';
+import type { Commander } from '../models/types';
 
 interface CommanderDamageProps {
   opponentId: string;
@@ -8,9 +9,11 @@ interface CommanderDamageProps {
   onAdd: () => void;
   onSub: () => void;
   colorClass: string;
-  onDeltaChange?: (delta: number) => void;
+  onDeltaChange?: (delta: number, label: string) => void;
   lethalThreshold?: number;
   wrapperClass?: string;
+  commander?: Commander;
+  isAdvancedMode?: boolean;
 }
 
 export const CommanderDamage: React.FC<CommanderDamageProps> = ({
@@ -21,6 +24,9 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   onDeltaChange,
   lethalThreshold = 21,
   wrapperClass = '',
+  commander,
+  isAdvancedMode = false,
+  opponentId,
 }) => {
   const [cmdDelta, setCmdDelta] = useState(0);
   const [showDelta, setShowDelta] = useState(false);
@@ -54,28 +60,45 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
 
   useEffect(() => {
     if (onDeltaChange) {
-      onDeltaChange(showDelta ? cmdDelta : 0);
+      const label = opponentId === 'poison' ? 'poison' : 'commander\ndamage';
+      onDeltaChange(showDelta ? cmdDelta : 0, label);
     }
-  }, [cmdDelta, showDelta, onDeltaChange]);
+  }, [cmdDelta, showDelta, onDeltaChange, opponentId]);
+
+  const getColorStyles = () => {
+    if (!isAdvancedMode || opponentId === 'poison') {
+      return {};
+    }
+    
+    // In Advanced Mode, all commander damage buttons should have a consistent light gray background.
+    return { 
+      backgroundColor: '#8c8c8c', 
+    };
+  };
 
   return (
-    <div className={`cmd-damage-item ${colorClass} ${wrapperClass}`}>
-      <div className="cmd-damage-controls">
+    <div 
+      className={`cmd-damage-item ${!commander ? colorClass : ''} ${isAdvancedMode ? 'advanced-item' : ''} ${wrapperClass}`}
+      style={getColorStyles()}
+    >
+      <div className="cmd-damage-controls" style={{ position: 'relative', zIndex: 2 }}>
         <button 
           className="cmd-btn cmd-sub" 
           {...subHold.handlers}
           disabled={damageAmount === 0 && !subHold.isPressing}
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
         >
           -
         </button>
         <div className="cmd-val-container">
-          <div className={`cmd-value ${damageAmount >= lethalThreshold ? 'lethal' : ''}`}>
+          <div className={`cmd-value ${damageAmount >= lethalThreshold ? 'lethal' : ''}`} style={{ textShadow: '0 2px 4px rgba(0,0,0,1)' }}>
             {damageAmount}
           </div>
         </div>
         <button 
           className="cmd-btn cmd-add" 
           {...addHold.handlers}
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
         >
           +
         </button>
@@ -83,3 +106,4 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
     </div>
   );
 };
+

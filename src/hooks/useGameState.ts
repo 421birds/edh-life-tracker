@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { GameState, Player } from '../models/types';
+import type { GameState, Player, Commander } from '../models/types';
 
 const MAX_PLAYERS = 4;
 const MIN_PLAYERS = 2;
@@ -34,6 +34,11 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       players: generateInitialPlayers(initialPlayerCount),
       playerCount: initialPlayerCount,
       turn: 1,
+      isAdvancedMode: false,
+      gameStartTime: null,
+      isTimerRunning: false,
+      elapsedBeforePause: 0,
+      currentSegmentStart: null,
     };
   });
 
@@ -144,6 +149,65 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       ...prev,
       players: generateInitialPlayers(prev.playerCount),
       turn: 1,
+      gameStartTime: null,
+      isTimerRunning: false,
+      elapsedBeforePause: 0,
+      currentSegmentStart: null,
+    }));
+  }, []);
+
+  const startGameTimer = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      gameStartTime: prev.gameStartTime || Date.now(),
+      currentSegmentStart: Date.now(),
+      isTimerRunning: true,
+      elapsedBeforePause: prev.elapsedBeforePause || 0,
+    }));
+  }, []);
+
+  const toggleTimer = useCallback(() => {
+    setGameState(prev => {
+      if (prev.isTimerRunning) {
+        // Pause
+        const addedElapsed = prev.currentSegmentStart ? (Date.now() - prev.currentSegmentStart) : 0;
+        return {
+          ...prev,
+          isTimerRunning: false,
+          elapsedBeforePause: (prev.elapsedBeforePause || 0) + addedElapsed,
+          currentSegmentStart: null,
+        };
+      } else {
+        // Resume
+        if (!prev.gameStartTime) {
+          // If it was never started, this is a start
+          return {
+            ...prev,
+            gameStartTime: Date.now(),
+            currentSegmentStart: Date.now(),
+            isTimerRunning: true,
+            elapsedBeforePause: 0,
+          };
+        }
+        return {
+          ...prev,
+          isTimerRunning: true,
+          currentSegmentStart: Date.now(),
+        };
+      }
+    });
+  }, []);
+
+  const setAdvancedMode = useCallback((enabled: boolean) => {
+    setGameState(prev => ({ ...prev, isAdvancedMode: enabled }));
+  }, []);
+
+  const setCommander = useCallback((playerId: string, commander: Commander | undefined) => {
+    setGameState(prev => ({
+      ...prev,
+      players: prev.players.map(p => 
+        p.id === playerId ? { ...p, commander } : p
+      )
     }));
   }, []);
 
@@ -157,5 +221,9 @@ export const useGameState = (initialPlayerCount: number = 4) => {
     updatePlayerName,
     resetGame,
     updateTurn,
+    setAdvancedMode,
+    setCommander,
+    startGameTimer,
+    toggleTimer,
   };
 };

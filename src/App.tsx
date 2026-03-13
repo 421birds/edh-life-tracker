@@ -1,9 +1,12 @@
 import { useGameState } from './hooks/useGameState';
 import { PlayerCard } from './components/PlayerCard';
+import { CommanderSearch } from './components/CommanderSearch';
+import type { Commander } from './models/types';
 import './App.css';
 import './App.css';
-import { Settings } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { Settings, Sparkles, Users, Play, Pause } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useWakeLock } from './hooks/useWakeLock';
 
 const DicePips = ({ count }: { count: number }) => {
   return (
@@ -11,6 +14,62 @@ const DicePips = ({ count }: { count: number }) => {
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="pip" />
       ))}
+    </div>
+  );
+};
+
+const GameTimer = ({ 
+  startTime, 
+  isRunning, 
+  elapsedBeforePause = 0, 
+  currentSegmentStart = null,
+  onToggle 
+}: { 
+  startTime: number | null, 
+  isRunning: boolean,
+  elapsedBeforePause?: number,
+  currentSegmentStart?: number | null,
+  onToggle: () => void
+}) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isRunning || !currentSegmentStart) {
+      setElapsed(elapsedBeforePause);
+      return;
+    }
+    
+    const update = () => {
+      const now = Date.now();
+      const segmentElapsed = now - (currentSegmentStart || now);
+      setElapsed(elapsedBeforePause + segmentElapsed);
+    };
+    
+    update();
+    const interval = setInterval(update, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isRunning, currentSegmentStart, elapsedBeforePause]);
+
+  if (!startTime) return null;
+
+  const totalSeconds = Math.floor(elapsed / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    <div className={`game-timer ${!isRunning ? 'paused' : ''}`}>
+      <div className="timer-val">
+        {hours > 0 ? `${hours.toString().padStart(2, '0')}:` : ''}
+        {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+      </div>
+      <button 
+        className="timer-toggle-btn" 
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      >
+        {isRunning ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+      </button>
     </div>
   );
 };
@@ -24,11 +83,18 @@ function App() {
     resetGame,
     setLifeExact,
     updatePoison,
-    updateTurn
+    updateTurn,
+    setAdvancedMode,
+    setCommander,
+    startGameTimer,
+    toggleTimer
   } = useGameState(4);
 
+  useWakeLock(true);
+
   const [showSettings, setShowSettings] = useState(false);
-  const [showFourPlayerOptions, setShowFourPlayerOptions] = useState(false);
+  const [showPlayerCountMenu, setShowPlayerCountMenu] = useState(false);
+  const [searchingPlayerId, setSearchingPlayerId] = useState<string | null>(null);
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Turn tracking handlers via double-tap / single-tap detection
@@ -100,12 +166,22 @@ function App() {
                 onPoisonChange={(amount) => updatePoison(player.id, amount)}
                 onCommanderDamageChange={(oppId, amount) => updateCommanderDamage(player.id, oppId, amount)}
                 layoutVariant={gameState.layoutVariant}
+                isAdvancedMode={gameState.isAdvancedMode}
+                onSearchCommander={() => setSearchingPlayerId(player.id)}
                 {...getCardOrientationProps(index, gameState.playerCount)}
               />
             </div>
           );
         })}
       </main>
+
+      {gameState.isAdvancedMode && !gameState.gameStartTime && gameState.players.every(p => p.commander) && (
+        <div className="start-game-overlay">
+          <button className="start-game-btn" onClick={startGameTimer}>
+            START GAME
+          </button>
+        </div>
+      )}
 
       <div 
         className="center-widget"
@@ -124,18 +200,24 @@ function App() {
       </div>
 
       {showSettings && (
-        <div className="settings-overlay" onClick={() => { setShowSettings(false); setShowFourPlayerOptions(false); }}>
+        <div className="settings-overlay" onClick={() => { setShowSettings(false); setShowPlayerCountMenu(false); }}>
           <div className="radial-menu-center" onClick={(e) => e.stopPropagation()}>
-            <button className="radial-center-btn" onClick={() => { setShowSettings(false); setShowFourPlayerOptions(false); }}>
+            <button className="radial-center-btn" onClick={() => { setShowSettings(false); setShowPlayerCountMenu(false); }}>
               <Settings size={28} />
             </button>
             
-            {showFourPlayerOptions ? (
+            {showPlayerCountMenu ? (
               <>
-                <button className="radial-btn radial-top" onClick={() => { setPlayerCount(4, 'default'); resetGame(); setShowSettings(false); setShowFourPlayerOptions(false); }}>
+                <button className="radial-btn radial-left" onClick={() => { setPlayerCount(2); resetGame(); setShowSettings(false); setShowPlayerCountMenu(false); }}>
+                  <DicePips count={2} />
+                </button>
+                <button className="radial-btn radial-top" onClick={() => { setPlayerCount(3); resetGame(); setShowSettings(false); setShowPlayerCountMenu(false); }}>
+                  <DicePips count={3} />
+                </button>
+                <button className="radial-btn radial-right" onClick={() => { setPlayerCount(4, 'default'); resetGame(); setShowSettings(false); setShowPlayerCountMenu(false); }}>
                   <DicePips count={4} />
                 </button>
-                <button className="radial-btn radial-bottom" onClick={() => { setPlayerCount(4, 'head-to-head'); resetGame(); setShowSettings(false); setShowFourPlayerOptions(false); }}>
+                <button className="radial-btn radial-bottom" onClick={() => { setPlayerCount(4, 'head-to-head'); resetGame(); setShowSettings(false); setShowPlayerCountMenu(false); }}>
                   <div style={{ transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <DicePips count={4} />
                   </div>
@@ -143,14 +225,11 @@ function App() {
               </>
             ) : (
               <>
-                <button className="radial-btn radial-top" onClick={() => { setPlayerCount(3); resetGame(); setShowSettings(false); }}>
-                  <DicePips count={3} />
+                <button className="radial-btn radial-top-left" onClick={() => { setShowPlayerCountMenu(true); }}>
+                  <Users size={24} color="#fff" />
                 </button>
-                <button className="radial-btn radial-right" onClick={() => { setShowFourPlayerOptions(true); }}>
-                  <DicePips count={4} />
-                </button>
-                <button className="radial-btn radial-left" onClick={() => { setPlayerCount(2); resetGame(); setShowSettings(false); }}>
-                  <DicePips count={2} />
+                <button className={`radial-btn radial-top-right ${gameState.isAdvancedMode ? 'active' : ''}`} onClick={() => { setAdvancedMode(!gameState.isAdvancedMode); setShowSettings(false); }}>
+                  <Sparkles size={24} color={gameState.isAdvancedMode ? '#d69e2e' : '#fff'} />
                 </button>
                 <button className="radial-btn radial-bottom" onClick={() => { resetGame(); setShowSettings(false); }}>
                   ⟲
@@ -158,7 +237,25 @@ function App() {
               </>
             )}
           </div>
+
+          <div className="menu-timer-container">
+            <GameTimer 
+              startTime={gameState.gameStartTime ?? null} 
+              isRunning={gameState.isTimerRunning ?? false}
+              elapsedBeforePause={gameState.elapsedBeforePause}
+              currentSegmentStart={gameState.currentSegmentStart}
+              onToggle={toggleTimer}
+            />
+          </div>
         </div>
+      )}
+
+      {searchingPlayerId && (
+        <CommanderSearch
+          playerName={gameState.players.find(p => p.id === searchingPlayerId)?.name || 'Player'}
+          onSelect={(commander: Commander) => setCommander(searchingPlayerId, commander)}
+          onClose={() => setSearchingPlayerId(null)}
+        />
       )}
     </div>
   );
