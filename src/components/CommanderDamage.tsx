@@ -9,7 +9,7 @@ interface CommanderDamageProps {
   onAdd: () => void;
   onSub: () => void;
   colorClass: string;
-  onDeltaChange?: (delta: number, label: string) => void;
+  onDeltaChange?: (delta: number, label: string, sourceId: string) => void;
   lethalThreshold?: number;
   wrapperClass?: string;
   commander?: Commander;
@@ -61,7 +61,7 @@ export const CommanderDamage: React.FC<CommanderDamageProps> = ({
   useEffect(() => {
     if (onDeltaChange) {
       const label = opponentId === 'poison' ? 'poison' : 'commander\ndamage';
-      onDeltaChange(showDelta ? cmdDelta : 0, label);
+      onDeltaChange(showDelta ? cmdDelta : 0, label, opponentId);
     }
   }, [cmdDelta, showDelta, onDeltaChange, opponentId]);
 

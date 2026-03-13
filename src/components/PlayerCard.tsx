@@ -43,10 +43,18 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const [showDelta, setShowDelta] = useState(false);
   const [trackerDelta, setTrackerDelta] = useState(0);
   const [trackerDeltaLabel, setTrackerDeltaLabel] = useState<string | null>(null);
+  const [trackerDeltaSource, setTrackerDeltaSource] = useState<string | null>(null);
 
-  const handleTrackerDelta = (delta: number, label: string) => {
-    setTrackerDelta(delta);
-    setTrackerDeltaLabel(label);
+  const handleTrackerDelta = (delta: number, label: string, sourceId: string) => {
+    if (delta !== 0) {
+      setTrackerDelta(delta);
+      setTrackerDeltaLabel(label);
+      setTrackerDeltaSource(sourceId);
+    } else if (sourceId === trackerDeltaSource) {
+      setTrackerDelta(0);
+      setTrackerDeltaLabel(null);
+      setTrackerDeltaSource(null);
+    }
   };
   const [isEditingLife, setIsEditingLife] = useState(false);
   const [exactLifeInput, setExactLifeInput] = useState(player.life.toString());
