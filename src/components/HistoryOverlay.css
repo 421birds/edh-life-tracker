@@ -98,9 +98,29 @@
 }
 
 .item-players {
-  font-size: 1rem;
-  color: #eee;
-  font-weight: 500;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.winner-name {
+  color: #d69e2e;
+  opacity: 1;
+}
+
+.item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  opacity: 0.5;
+  margin-top: 4px;
+}
+
+.item-dot {
+  font-size: 0.6rem;
 }
 
 .item-right {

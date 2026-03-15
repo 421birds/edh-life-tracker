@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, Trash2, Trophy, Clock, Calendar, History as HistoryIcon } from 'lucide-react';
+import { X, ChevronRight, Trash2, Trophy, Clock, Calendar, RotateCcw, History as HistoryIcon } from 'lucide-react';
 import { historyService } from '../services/historyService';
 import type { GameRecord } from '../models/types';
 import './HistoryOverlay.css';
@@ -81,10 +81,18 @@ export const HistoryOverlay: React.FC<HistoryOverlayProps> = ({ onClose }) => {
                   <Clock size={18} />
                   <span>Duration: {formatDuration(selectedGame.duration)}</span>
                 </div>
+                <div className="meta-item">
+                  <RotateCcw size={18} />
+                  <span>Turns: {selectedGame.turnCount}</span>
+                </div>
               </div>
 
               <div className="detail-players">
-                {selectedGame.players.map(player => (
+                {[...selectedGame.players].sort((a, b) => {
+                  const orderA = selectedGame.turnOrder?.indexOf(a.id) ?? 0;
+                  const orderB = selectedGame.turnOrder?.indexOf(b.id) ?? 0;
+                  return orderA - orderB;
+                }).map(player => (
                   <div key={player.id} className={`detail-player-card ${player.isWinner ? 'winner' : 'defeated'}`}>
                     <div className="player-main">
                       {player.isWinner && <Trophy size={20} className="winner-icon" />}
@@ -123,8 +131,18 @@ export const HistoryOverlay: React.FC<HistoryOverlayProps> = ({ onClose }) => {
                   <div className="item-left">
                     <span className="item-date">{formatDate(game.timestamp)}</span>
                     <span className="item-players">
-                      {game.players.map(p => p.name).join(', ')}
+                      {game.players.map((p, idx) => (
+                        <React.Fragment key={idx}>
+                          <span className={p.isWinner ? 'winner-name' : ''}>{p.name}</span>
+                          {idx < game.players.length - 1 ? ', ' : ''}
+                        </React.Fragment>
+                      ))}
                     </span>
+                    <div className="item-meta-row">
+                      <span className="item-turns">{game.turnCount} turns</span>
+                      <span className="item-dot">•</span>
+                      <span className="item-duration">{formatDuration(game.duration)}</span>
+                    </div>
                   </div>
                   <div className="item-right">
                     <button className="delete-btn" onClick={e => handleDelete(e, game.id)}>

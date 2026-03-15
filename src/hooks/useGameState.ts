@@ -44,6 +44,7 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       isTimerRunning: false,
       elapsedBeforePause: 0,
       currentSegmentStart: null,
+      firstPlayerId: null,
     };
   });
 
@@ -158,6 +159,7 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       isTimerRunning: false,
       elapsedBeforePause: 0,
       currentSegmentStart: null,
+      firstPlayerId: null,
     }));
   }, []);
 
@@ -196,6 +198,8 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       deathCause: p.deathStatus?.cause,
     }));
 
+    const turnOrder = getTurnOrder(gameState.players, gameState.firstPlayerId || gameState.players[0].id, gameState.layoutVariant || 'default');
+
     const record: GameRecord = {
       id: crypto.randomUUID(),
       timestamp: gameState.gameStartTime,
@@ -204,11 +208,48 @@ export const useGameState = (initialPlayerCount: number = 4) => {
       playerCount: gameState.playerCount,
       isAdvancedMode: gameState.isAdvancedMode,
       players,
+      turnCount: gameState.turn,
+      turnOrder,
     };
 
     historyService.saveGame(record);
     resetGame();
   }, [gameState, resetGame]);
+
+  // Helper to determine clockwise order based on layout
+  const getTurnOrder = (players: Player[], startId: string, layout: 'default' | 'head-to-head'): string[] => {
+    const count = players.length;
+    let baseOrder: number[] = [];
+
+    if (count === 4) {
+      if (layout === 'head-to-head') {
+        // [0, 2, 3, 1] (Top -> Right -> Bottom -> Left)
+        baseOrder = [0, 2, 3, 1];
+      } else {
+        // [0, 1, 3, 2] (TL -> TR -> BR -> BL)
+        baseOrder = [0, 1, 3, 2];
+      }
+    } else if (count === 3) {
+      // [0, 1, 2] (Left -> Right -> Bottom)
+      baseOrder = [0, 1, 2];
+    } else {
+      // 2 players: [0, 1]
+      baseOrder = [0, 1];
+    }
+
+    const playerIdsByVisualOrder = baseOrder.map(idx => players[idx].id);
+    const startIdx = playerIdsByVisualOrder.indexOf(startId);
+    
+    // Shift the order to start with startId
+    return [
+      ...playerIdsByVisualOrder.slice(startIdx),
+      ...playerIdsByVisualOrder.slice(0, startIdx)
+    ];
+  };
+
+  const setFirstPlayer = useCallback((playerId: string | null) => {
+    setGameState(prev => ({ ...prev, firstPlayerId: playerId }));
+  }, []);
 
   const startGameTimer = useCallback(() => {
     setGameState(prev => ({
@@ -282,5 +323,6 @@ export const useGameState = (initialPlayerCount: number = 4) => {
     confirmDeath,
     revivePlayer,
     endGame,
+    setFirstPlayer,
   };
 };

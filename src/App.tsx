@@ -93,6 +93,7 @@ function App() {
     confirmDeath,
     revivePlayer,
     endGame,
+    setFirstPlayer,
   } = useGameState(4);
 
   useWakeLock(true);
@@ -185,10 +186,38 @@ function App() {
       </main>
 
       {gameState.isAdvancedMode && !gameState.gameStartTime && gameState.players.every(p => p.commander) && (
-        <div className="start-game-overlay">
-          <button className="start-game-btn" onClick={startGameTimer}>
-            START GAME
-          </button>
+        <div className="flow-overlay">
+          {!gameState.firstPlayerId ? (
+            <div className="first-player-selection">
+              <h2>Who's going first?</h2>
+              <div className={`selection-grid ${getGridLayoutClass(gameState.playerCount)}`}>
+                {gameState.players.map((p, i) => (
+                  <button 
+                    key={p.id} 
+                    className={`selection-btn color-${i}`}
+                    onClick={() => setFirstPlayer(p.id)}
+                  >
+                    <span className="btn-player-name">{p.name || `Player ${i + 1}`}</span>
+                    {p.commander && <span className="btn-commander-name">{p.commander.name}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="start-confirm">
+              <div className="selected-announcement">
+                <span>{gameState.players.find(p => p.id === gameState.firstPlayerId)?.name} goes first!</span>
+              </div>
+              <div className="start-actions">
+                <button className="start-game-btn" onClick={startGameTimer}>
+                  START GAME
+                </button>
+                <button className="change-first-btn" onClick={() => setFirstPlayer(null)}>
+                  Change
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

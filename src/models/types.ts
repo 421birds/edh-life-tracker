@@ -24,10 +24,11 @@ export interface GameState {
   layoutVariant?: 'default' | 'head-to-head';
   turn: number;
   isAdvancedMode: boolean;
-  gameStartTime?: number | null; // Keep for legacy/initial start ref if needed, but we'll use below
+  gameStartTime?: number | null;
   isTimerRunning?: boolean;
   elapsedBeforePause?: number;
   currentSegmentStart?: number | null;
+  firstPlayerId: string | null;
 }
 
 export interface PlayerHistorySummary {
@@ -48,4 +49,6 @@ export interface GameRecord {
   playerCount: number;
   isAdvancedMode: boolean;
   players: PlayerHistorySummary[];
+  turnCount: number;
+  turnOrder: string[]; // List of player IDs in clockwise order starting from first player
 }
